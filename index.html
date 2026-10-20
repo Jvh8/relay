@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Search</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0e0f11;
+        --elev: #16171a;
+        --fg: #eceae4;
+        --muted: #9a9690;
+        --line: #2a2b2e;
+        --sunken: #0a0b0c;
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        background: var(--bg);
+        color: var(--fg);
+        font: 16px/1.5 Outfit, system-ui, sans-serif;
+      }
+      button, input { font: inherit; color: inherit; }
+      button { cursor: pointer; }
+      button:disabled { color: #6e6a64; cursor: default; }
+      .home, .browser { min-height: 100%; }
+      .home {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+      .home[hidden], .browser[hidden] { display: none; }
+      form {
+        width: min(40rem, 100%);
+        display: flex;
+        gap: 8px;
+        padding: 8px;
+        border-radius: 16px;
+        background: var(--elev);
+      }
+      form.stack { flex-direction: column; }
+      input {
+        flex: 1;
+        min-width: 0;
+        height: 44px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--bg);
+        padding: 0 12px;
+        outline: none;
+      }
+      input:focus-visible, button:focus-visible {
+        outline: 2px solid var(--fg);
+        outline-offset: 2px;
+      }
+      .go {
+        height: 44px;
+        border: 0;
+        border-radius: 10px;
+        padding: 0 18px;
+        background: var(--fg);
+        color: #141516;
+        font-weight: 500;
+      }
+      .bar {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+        padding: 8px 10px 8px 8px;
+        border-bottom: 1px solid var(--line);
+      }
+      .bar form { flex: 1; padding: 0; background: transparent; }
+      .icon {
+        width: 40px;
+        height: 40px;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+      }
+      .frame {
+        height: calc(100dvh - 57px);
+        width: 100%;
+        border: 0;
+        background: var(--sunken);
+      }
+      .note {
+        display: none;
+        padding: 28px 24px;
+        color: var(--muted);
+        max-width: 36rem;
+      }
+      .note a { color: var(--fg); }
+      @media (max-width: 640px) {
+        form { flex-direction: column; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="home" id="home">
+      <h1 class="sr" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Search</h1>
+      <form id="home-form">
+        <label class="sr" for="q" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Search or address</label>
+        <input id="q" name="q" placeholder="Search or paste an address" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" />
+        <button class="go" type="submit">Search</button>
+      </form>
+    </main>
+    <section class="browser" id="browser" hidden>
+      <div class="bar">
+        <button class="icon" id="back" type="button" aria-label="Back" disabled>←</button>
+        <button class="icon" id="forward" type="button" aria-label="Forward" disabled>→</button>
+        <button class="icon" id="reload" type="button" aria-label="Reload">↻</button>
+        <button class="icon" id="home-btn" type="button" aria-label="Home">⌂</button>
+        <form id="bar-form">
+          <input id="address" aria-label="Search or address" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" />
+          <button class="go" type="submit">Go</button>
+        </form>
+      </div>
+      <p class="note" id="note"></p>
+      <iframe class="frame" id="frame" title="Page" referrerpolicy="no-referrer"></iframe>
+    </section>
+    <script>
+      const home = document.getElementById("home");
+      const browser = document.getElementById("browser");
+      const frame = document.getElementById("frame");
+      const note = document.getElementById("note");
+      const address = document.getElementById("address");
+      const back = document.getElementById("back");
+      const forward = document.getElementById("forward");
+      const stack = [];
+      let index = -1;
+
+      function destination(raw) {
+        const text = raw.trim();
+        if (!text) return null;
+        if (/^https?:\/\//i.test(text)) {
+          try { return new URL(text).href; } catch { return null; }
+        }
+        if (!/\s/.test(text) && /^[\w.-]+\.[a-z]{2,}([/:?#].*)?$/i.test(text)) {
+          try { return new URL("https://" + text).href; } catch { return null; }
+        }
+        return "https://html.duckduckgo.com/html/?q=" + encodeURIComponent(text);
+      }
+
+      function blocked(url) {
+        let host = "";
+        try { host = new URL(url).hostname.toLowerCase(); } catch { return true; }
+        if (host === "localhost" || host.endsWith(".local") || host.endsWith(".internal")) return true;
+        if (/^(127\.|10\.|192\.168\.|0\.|169\.254\.|\[::1\]|::1$)/.test(host)) return true;
+        return false;
+      }
+
+      function show(url, push) {
+        if (blocked(url)) {
+          note.hidden = false;
+          note.style.display = "block";
+          frame.hidden = true;
+          note.textContent = "Private and local addresses are refused.";
+          return;
+        }
+        note.style.display = "none";
+        frame.hidden = false;
+        if (push) {
+          stack.splice(index + 1);
+          stack.push(url);
+          index = stack.length - 1;
+        }
+        address.value = url;
+        frame.src = url;
+        back.disabled = index <= 0;
+        forward.disabled = index >= stack.length - 1;
+        home.hidden = true;
+        browser.hidden = false;
+      }
+
+      function openFrom(value) {
+        const url = destination(value);
+        if (!url) return;
+        show(url, true);
+      }
+
+      document.getElementById("home-form").addEventListener("submit", (event) => {
+        event.preventDefault();
+        openFrom(document.getElementById("q").value);
+      });
+      document.getElementById("bar-form").addEventListener("submit", (event) => {
+        event.preventDefault();
+        openFrom(address.value);
+      });
+      back.addEventListener("click", () => {
+        if (index <= 0) return;
+        index -= 1;
+        show(stack[index], false);
+      });
+      forward.addEventListener("click", () => {
+        if (index >= stack.length - 1) return;
+        index += 1;
+        show(stack[index], false);
+      });
+      document.getElementById("reload").addEventListener("click", () => {
+        frame.src = frame.src;
+      });
+      document.getElementById("home-btn").addEventListener("click", () => {
+        browser.hidden = true;
+        home.hidden = false;
+        document.getElementById("q").focus();
+      });
+      frame.addEventListener("load", () => {
+        try {
+          const href = frame.contentWindow.location.href;
+          if (href && href !== "about:blank") address.value = href;
+        } catch {
+          /* cross-origin page; keep the address we opened */
+        }
+      });
+    </script>
+  </body>
+</html>
