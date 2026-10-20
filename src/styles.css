@@ -1,0 +1,128 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0e0f11;
+  --color-bg-elev: #16171a;
+  --color-bg-sunken: #0a0b0c;
+  --color-fg: #eceae4;
+  --color-muted: #9a9690;
+  --color-subtle: #6e6a64;
+  --color-line: #2a2b2e;
+  --color-line-strong: #3c3d40;
+  --color-accent: #eceae4;
+  --color-accent-fg: #141516;
+  --font-display: "Newsreader", Georgia, "Times New Roman", serif;
+  --font-sans: "Outfit", "Avenir Next", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.75rem;
+}
+
+@layer base {
+  :root {
+    --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+    --motion-fast: 250ms;
+    --motion-quick: 150ms;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-fg);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-x {
+  padding-left: max(0.75rem, env(safe-area-inset-left));
+  padding-right: max(0.75rem, env(safe-area-inset-right));
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-size: clamp(2.75rem, 1.6rem + 4vw, 4.25rem);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.kicker {
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.press {
+  transition:
+    transform var(--motion-quick) var(--ease-smooth),
+    background-color var(--motion-quick) var(--ease-smooth),
+    color var(--motion-quick) var(--ease-smooth);
+}
+
+.press:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.relay-progress {
+  height: 2px;
+  background: var(--color-fg);
+  transform-origin: left center;
+  animation: relay-progress 900ms var(--ease-smooth) infinite;
+}
+
+@keyframes relay-progress {
+  0% {
+    transform: scaleX(0);
+  }
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .relay-progress {
+    animation: none;
+    transform: scaleX(0.35);
+  }
+}
